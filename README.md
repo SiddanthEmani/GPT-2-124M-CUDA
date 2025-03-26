@@ -1,123 +1,106 @@
-# GPT-2-124M-CUDA
+# High-Performance GPT-2 Pre-Training with CUDA
 
-This repository demonstrates an end-to-end pre-training of a **124M-parameter GPT-2** model using a custom CUDA/C implementation. Below is an overview of the project structure, key features, and a brief analysis of the provided training visualization (`output.png`).
+This repository showcases the pre-training of a 124M parameter GPT-2 model from scratch using an optimized CUDA implementation. The project was executed on Lambda Labs' 8xA100 40GB SXM4 GPUs, surpassing the original GPT-2 124M performance on HellaSwag (accuracy: 31.0 vs. 29.4) with a validation loss of ~3.2.
 
----
+## Project Highlights
 
-## Repository Structure
+- **Efficient Training**: Achieved ~60.0% model flops utilization (MFU) on A100 GPUs.
+- **Cost-Effective**: Pre-trained on 10B FineWeb tokens in ~1 hour 47 minutes for ~$20.
+- **Optimizations**: Leveraged CUDA, cuBLAS, NCCL, mixed precision, Flash Attention, Kernel Fusions, ZeRO-1, State Sharding and Micro-Batch Optimizations.  
 
-.
-├── dev/
-├── llmc/
-├── log124M/
-├── scripts/
-│   ├── …
-├── *.cu
-├── *.c
-├── *.py
-├── *.ipynb
-├── LICENSE
-├── Makefile
-├── README.md
-└── requirements.txt
+## Usage
 
-- **`dev/`**  
-  Contains development assets or experimental code.  
-- **`llmc/`**  
-  Houses custom CUDA kernels, header files, and utility functions for efficient GPT-2 training.  
-- **`log124M/`**  
-  Stores logs, checkpoints, or other output artifacts from training.  
-- **`scripts/`**  
-  Shell scripts that orchestrate training, evaluation, or profiling (e.g., `train.sh`, `evaluate.sh`).  
-- **Source Files** (`.cu`, `.c`, `.py`, `.ipynb`)  
-  - `train_gpt2.cu` / `train_gpt2.py` – Core training logic.  
-  - `test_gpt2.cu` / `profile_gpt2.cu` – Testing or profiling CUDA kernels.  
-  - `vislog.ipynb` – Jupyter notebook for log visualization.  
-- **`Makefile`**  
-  Facilitates compilation of CUDA/C source files, linking necessary libraries (cuBLAS, cuDNN, NCCL).  
-- **`requirements.txt`**  
-  Lists Python dependencies for data processing, logging, or additional utilities.  
-- **`LICENSE`**  
-  MIT License specifying usage rights and limitations.
-
----
-
-## Quick Start
-
-1. **Clone the Repository**
+1. **Prepare Data**:
+   - Preprocess FineWeb 10B into `.bin` format.
+2. **SSH into GPU instances**
+3. **Train**:
    ```bash
-   git clone https://github.com/SiddanthEmani/GPT-2-124M-CUDA.git
-   cd GPT-2-124M-CUDA
+   ./scripts/run_gpt2_124M.sh
+   ```
+## Future Updates
 
-	2.	Install Dependencies
+This project is a stepping stone for advanced LLM research. Planned updates include:
+- **Reinforcement Learning (RL)**: Integrate RL for fine-tuning (e.g., PPO for alignment).
+- **LLaMA Replication**: Build and optimize the LLaMA architecture.
+- **New Architectures**: Explore scaling to larger models like GPT-3 175B.
 
-pip install -r requirements.txt
+## Acknowledgements
 
-Ensure that your system has the appropriate CUDA toolkit and drivers installed.
+Inspired by Andrej Karpathy's `llm.c` repository for efficient LLM training techniques.
 
-	3.	Compile CUDA Code
+---
 
-make
+## Methodology
 
-This will compile all .cu files, linking them with any required libraries. Adjust Makefile if needed.
+- **Model**: GPT-2 (12 layers, 12 heads, 768 hidden dim, 1024 seq length).
+- **Data**: FineWeb dataset (binary format).
+- **Training**: Mixed precision (BF16), AdamW, ZeRO-1 sharding.
+- **Hardware**: 8xA100 40GB SXM4 GPUs via Lambda Labs.
 
-	4.	Run Training
+## Results
 
-./scripts/train.sh
+- **Training Time**: ~1 hour 47 minutes.
+- **Throughput**: 1.59M tokens/second.
+- **MFU**: ~60.0%.
+- **Cost**: ~$20.
 
-Edit hyperparameters (batch size, sequence length, learning rate) in the script or directly in train_gpt2.cu/train_gpt2.py.
+---
 
-	5.	Evaluate or Profile
-	•	Evaluate
+# Future Updates
 
-./scripts/evaluate.sh
+This project lays the groundwork for advanced LLM development. Planned updates include:
 
+1. **Reinforcement Learning (RL)**:
+   - Goal: Fine-tune with RL (e.g., PPO) for tasks like instruction following.
+   - Plan: Extend the pipeline to support reward models and human feedback.
 
-	•	Profile
+2. **LLaMA Architecture**:
+   - Goal: Replicate and optimize LLaMA for efficiency and performance.
+   - Plan: Adapt CUDA code for rotary embeddings and grouped-query attention.
 
-nvprof --analysis-metrics ./train_gpt2
+3. **Advanced Architectures**:
+   - Goal: Scale to larger models (e.g., GPT-3 175B).
+   - Plan: Implement gradient checkpointing, model parallelism, and ZeRO stages 2/3.
 
-or use profile_gpt2cu.py for deeper performance metrics.
+These updates aim to enhance scalability and explore cutting-edge LLM techniques.
 
-⸻
+---
 
-Performance Visualization
+# Training Details
 
-Below is the output (output.png) showing training and validation loss (left) and HellaSwag evaluation (right):
+```bash
+mpirun -np 8 ./train_gpt2cu \
+    -i "dev/data/fineweb10B/fineweb_train_*.bin" \
+    -j "dev/data/fineweb10B/fineweb_val_*.bin" \
+    -o log124M \
+    -e "d12" \
+    -b 64 -t 1024 \
+    -d 524288 \
+    -r 1 \
+    -z 1 \
+    -c 0.1 \
+    -l 0.0006 \
+    -q 0.0 \
+    -u 700 \
+    -n 5000 \
+    -v 250 -s 20000 \
+    -h 1
+```
 
-![Output](output.png)
-
-Key Insights
-	•	Loss Curves
-	•	The blue line represents training loss for the 124M GPT-2 model trained via this CUDA approach. It steadily decreases from ~4.0 down to ~3.0.
-	•	The red line is the validation loss, converging to around 3.2 by step ~2000.
-	•	The orange line (or dashed line) reflects the OpenAI GPT-2 (124M) checkpoint validation baseline. Our final validation loss closely matches or slightly outperforms this baseline.
-	•	HellaSwag Accuracy
-	•	The blue line on the right chart shows model accuracy on the HellaSwag dataset.
-	•	The dashed horizontal lines (red and green) indicate reference accuracies for different OpenAI GPT-2 (124M) checkpoints.
-	•	Our final accuracy reaches around 0.31, slightly surpassing the original GPT-2 (124M) checkpoint baseline of 0.30.
-
-These results confirm that a CUDA-optimized approach, coupled with multi-GPU strategies (e.g., ZeRO-1 sharding, gradient recomputation), can match or exceed baseline GPT-2 performance in both validation loss and downstream accuracy.
-
-⸻
-
-Future Plans
-	1.	Reinforcement Learning (RL)
-	•	Integrate RL (e.g., PPO) for alignment or task-specific fine-tuning, enabling GPT-2 to learn from reward signals.
-	2.	LLaMA Architecture
-	•	Adapt code for LLaMA’s rotary embeddings and specialized attention mechanisms, facilitating efficient training of modern architectures.
-	3.	Scaling to Larger Models
-	•	Explore gradient checkpointing, ZeRO-2/3, and advanced memory optimizations to handle GPT-3-scale models.
-
-⸻
-
-Contributing
-
-Contributions are welcome! Please open an issue or pull request to discuss major changes or ideas.
-
-⸻
-
-License
-
-This project is licensed under the MIT License.
-
+## Hyperparameters
+- `-i` and `-j` are training and validation splits token files, written by fineweb.py
+- `-o` is the output directory to write logs and checkpoints into
+- `-e "d12"` asks to initialize a depth 12 GPT-2 model from scratch
+- `-b 64` sets the micro-batch size to 64. If you are running out of memory, decrease this value (e.g., try 32, 16, 8, down to potentially 1)
+- `-t 1024` sets the maximum sequence length to 1024, matching GPT-2
+- `-d 524288` requests a total batch size per update of ~0.5M tokens. The code calculates gradient accumulation accordingly. For instance, on 8 GPUs with `-b 64` and `-t 1024`, the batch is exactly 8 × 64 × 1024 = 524288 tokens, requiring no gradient accumulation. If using 1 GPU, gradient accumulation is set to 8 iterations per step to match this batch size. This size (~0.5M tokens) comes from GPT-3 guidelines.
+- `-r 1` sets recomputation of GeLU activations to save memory at a slight runtime cost, allowing larger batch sizes and higher throughput
+- `-z 1` activates ZeRO-1 optimizer state sharding across multiple GPUs. Recommended if using more than 1 GPU; no effect on single GPU setups
+- `-c 0.1` sets weight decay to 0.1. Only 2D weights decay, matching GPT-2 and GPT-3 conventions
+- `-l 0.0006` sets the maximum learning rate according to GPT-3
+- `-q 0.0` decays learning rate to 0 over training duration
+- `-u 700` ramps learning rate from 0 to maximum over first 700 iterations (~350M tokens), as per GPT-3
+- `-n 5000` saves model checkpoints every 5000 steps
+- `-v 250` evaluates and logs validation loss every 250 steps
+- `-s 20000` samples tokens every 20000 steps; with fewer total steps, sampling effectively happens only at training end
+- `-h 1` evaluates the HellaSwag accuracy metric for comparison across papers
