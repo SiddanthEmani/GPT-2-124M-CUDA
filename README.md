@@ -2,6 +2,8 @@
 
 This repository showcases the pre-training of a 124M parameter GPT-2 model from scratch using an optimized CUDA implementation. The project was executed on Lambda Labs' 8xA100 40GB SXM4 GPUs, surpassing the original GPT-2 124M performance on HellaSwag (accuracy: 31.0 vs. 29.4) with a validation loss of ~3.2.
 
+![Output](output.png)
+
 ## Project Highlights
 
 - **Efficient Training**: Achieved ~60.0% model flops utilization (MFU) on A100 GPUs.
